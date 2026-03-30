@@ -1,0 +1,201 @@
+<html>
+<head><title>AO3 Squidge Importer</title></head>
+<body>
+<div style="font-family: var(--font-sans); color: var(--color-text-primary); padding: 1rem 0;">
+
+<div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 0.75rem 1rem; border: 0.5px solid var(--color-border-tertiary);">
+<h2>ao3-squidge-importer</h2>
+  <p>Bookmarklet to import a fanfic from AO3 into SquidgeWorldArchive. Please only use on your own fics or those you are authorised to archive, and pay attention to the terms of both archives for what types of works are allowed - there are slight differences.</p><p>
+Created with help from Claude AI.
+</p><ul><li>
+    Add both bookmarklet files to your bookmarks.</li><li>
+    Make sure you're logged in to both AO3 and Squidge.</li><li>
+    Open a fic on AO3 in whole work view in your browser.</li><li>
+    Click first bookmarklet. It will copy the details of your fic and then navigate you to Squidge's new work form.</li><li>
+    Make sure the page has fully loaded.</li><li>
+    Click second bookmarklet. It will fill in all the fields it can. It will backdate the work to the original AO3 posting date.</li><li>
+    Go through the tags, check and edit, select from the autocomplete where relevant, and hit enter at the end of each field to make them save.</li><li>
+    Post your work.</li></ul>
+
+<p>If you appreciate this tool, please consider donating to a good cause.</p>
+</div>
+
+<div style="margin-bottom: 1.5rem;">
+  <p style="font-size: 13px; color: var(--color-text-secondary); margin: 0 0 4px;"><strong style="color:var(--color-text-primary);">Step 1</strong> — run on the AO3 work page.</p>
+  <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+    <a id="grabLink" href="" style="display:inline-block; padding: 6px 16px; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-primary); border-radius: var(--border-radius-md); font-size: 14px; font-weight: 500; color: var(--color-text-primary); text-decoration: none; cursor: grab; white-space: nowrap;">1 · AO3 Grab &amp; Go</a>
+    <button onclick="copyBm('grab')">Copy code</button>
+    <span id="grab-copied" style="font-size:12px; color:var(--color-text-success); display:none;">Copied!</span>
+  </div>
+</div>
+
+<div style="margin-bottom: 1.5rem;">
+  <p style="font-size: 13px; color: var(--color-text-secondary); margin: 0 0 4px;"><strong style="color:var(--color-text-primary);">Step 2</strong> — run on the Squidge new-work form after it loads.</p>
+  <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+    <a id="fillLink" href="" style="display:inline-block; padding: 6px 16px; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-primary); border-radius: var(--border-radius-md); font-size: 14px; font-weight: 500; color: var(--color-text-primary); text-decoration: none; cursor: grab; white-space: nowrap;">2 · Squidge Fill</a>
+    <button onclick="copyBm('fill')">Copy code</button>
+    <span id="fill-copied" style="font-size:12px; color:var(--color-text-success); display:none;">Copied!</span>
+  </div>
+</div>
+
+<script>
+const WARN_MAP = {
+  'Choose Not To Use Archive Warnings':'work_archive_warning_strings_choose_not_to_use_archive_warnings',
+  'Graphic Depictions Of Violence':'work_archive_warning_strings_graphic_depictions_of_violence',
+  'Major Character Death':'work_archive_warning_strings_major_character_death',
+  'No Archive Warnings Apply':'work_archive_warning_strings_no_archive_warnings_apply',
+  'Rape/Non-Con':'work_archive_warning_strings_rapenon-con',
+  'Underage':'work_archive_warning_strings_underage'
+};
+const CAT_MAP = {
+  'F/F':'work_category_strings_ff',
+  'F/M':'work_category_strings_fm',
+  'Gen':'work_category_strings_gen',
+  'M/M':'work_category_strings_mm',
+  'Multi':'work_category_strings_multi',
+  'Other':'work_category_strings_other'
+};
+
+const grabCode = `javascript:(function(){
+  var g=function(s){return[...document.querySelectorAll(s)].map(function(e){return e.textContent.trim()}).filter(Boolean);};
+  var ih=function(s){var e=document.querySelector(s);return e?e.innerHTML.trim():'';};
+  var d={
+    title:(document.querySelector('h2.title')||{textContent:''}).textContent.trim(),
+    rating:(document.querySelector('.rating .tag')||{textContent:''}).textContent.trim(),
+    warnings:g('.warning .tag'),
+    categories:g('.category .tag'),
+    fandoms:g('.fandom .tag'),
+    relationships:g('.relationship .tag'),
+    characters:g('.character .tag'),
+    freeform:g('.freeform .tag'),
+    summary:ih('.summary blockquote')||ih('.summary .userstuff'),
+    frontNotes:ih('.notes:not(.end) blockquote'),
+    endNotes:ih('.end.notes blockquote'),
+    content:ih('#chapters .userstuff')||ih('.chapter .userstuff'),
+    language:(document.querySelector('dd.language')||{textContent:''}).textContent.trim()||'English',
+    published:(document.querySelector('dd.published')||{textContent:''}).textContent.trim()
+  };
+  if(!d.title){alert('Could not find work data. Are you on an AO3 work page?');return;}
+  var encoded=btoa(unescape(encodeURIComponent(JSON.stringify(d))));
+  if(encoded.length>8000){
+    var d2=Object.assign({},d,{content:'__TOOLONG__'});
+    sessionStorage.setItem('ao3content',d.content);
+    encoded=btoa(unescape(encodeURIComponent(JSON.stringify(d2))));
+  }
+  location.href='https://squidgeworld.org/works/new#ao3='+encoded;
+})();`;
+
+const fillCode = `javascript:(function(){
+  var hash=location.hash;
+  if(!hash||hash.indexOf('ao3=')<0){alert('No AO3 data in URL. Run bookmarklet 1 on the AO3 page first.');return;}
+  var d;
+  try{d=JSON.parse(decodeURIComponent(escape(atob(hash.replace(/^#ao3=/,'')))));}
+  catch(e){alert('Could not decode data: '+e.message);return;}
+
+  var WMAP=${JSON.stringify(WARN_MAP)};
+  var CMAP=${JSON.stringify(CAT_MAP)};
+  var RMAP={'Not Rated':'Not Rated','General Audiences':'General Audiences','Teen And Up Audiences':'Teen And Up Audiences','Mature':'Mature','Explicit':'Explicit'};
+
+  var set=function(id,val){var e=document.getElementById(id);if(e){e.value=val;e.dispatchEvent(new Event('change',{bubbles:true}));}};
+  var check=function(id,on){var e=document.getElementById(id);if(e){e.checked=on;e.dispatchEvent(new Event('change',{bubbles:true}));}};
+  var setAuto=function(hiddenId,acId,val){
+    set(hiddenId,val);
+    var vis=document.getElementById(acId);
+    if(vis){vis.value=val;vis.dispatchEvent(new Event('input',{bubbles:true}));}
+  };
+  var setTmce=function(id,html){
+    try{var tm=window.tinymce&&window.tinymce.get(id);if(tm){tm.setContent(html);return true;}}catch(e){}
+    return false;
+  };
+  var setField=function(id,html){if(!setTmce(id,html)){set(id,html);}};
+
+  set('work_title',d.title);
+  var rs=document.getElementById('work_rating_string');
+  if(rs&&RMAP[d.rating])rs.value=RMAP[d.rating];
+  Object.keys(WMAP).forEach(function(w){check(WMAP[w],d.warnings.indexOf(w)>-1);});
+  Object.keys(CMAP).forEach(function(c){check(CMAP[c],d.categories.indexOf(c)>-1);});
+  setAuto('work_fandom','work_fandom_autocomplete',d.fandoms.join(', '));
+  setAuto('work_relationship','work_relationship_autocomplete',d.relationships.join(', '));
+  setAuto('work_character','work_character_autocomplete',d.characters.join(', '));
+  setAuto('work_freeform','work_freeform_autocomplete',d.freeform.join(', '));
+  setField('work_summary',d.summary);
+  var content=d.content==='__TOOLONG__'?sessionStorage.getItem('ao3content'):d.content;
+  setField('content',content||'');
+
+  var langSelect=document.getElementById('work_language_id');
+  if(langSelect&&d.language){
+    var target=d.language.trim().toLowerCase();
+    var opts=[].slice.call(langSelect.options);
+    var match=opts.filter(function(o){return o.text.trim().toLowerCase()===target;})[0]
+              ||opts.filter(function(o){return o.text.trim().toLowerCase().indexOf(target)===0;})[0]
+              ||opts.filter(function(o){return o.text.trim().toLowerCase()==='english';})[0];
+    if(match)langSelect.value=match.value;
+  }
+
+  if(d.published){
+    var m=d.published.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+    if(m){
+      var yr=m[1], mo=String(parseInt(m[2],10)), dy=String(parseInt(m[3],10));
+      var bdShow=document.getElementById('backdate-options-show');
+      if(bdShow&&!bdShow.checked){
+        bdShow.click();
+      }
+      var attempts=0;
+      var waitForSelects=setInterval(function(){
+        attempts++;
+        var yEl=document.getElementById('work_chapter_attributes_published_at_1i');
+        var mEl=document.getElementById('work_chapter_attributes_published_at_2i');
+        var dEl=document.getElementById('work_chapter_attributes_published_at_3i');
+        var fs=document.getElementById('backdate-options');
+        var visible=fs&&fs.offsetParent!==null;
+        if(visible&&yEl&&mEl&&dEl){
+          clearInterval(waitForSelects);
+          yEl.value=yr;
+          yEl.dispatchEvent(new Event('change',{bubbles:true}));
+          mEl.value=mo;
+          mEl.dispatchEvent(new Event('change',{bubbles:true}));
+          dEl.value=dy;
+          dEl.dispatchEvent(new Event('change',{bubbles:true}));
+        }
+        if(attempts>20)clearInterval(waitForSelects);
+      },100);
+    }
+  }
+
+  if(d.frontNotes){
+    var fc=document.getElementById('front-notes-options-show');
+    if(fc&&!fc.checked)fc.click();
+    setTimeout(function(){var t=document.querySelector('#front-notes-options textarea');if(t)setField(t.id||'',d.frontNotes);},700);
+  }
+  if(d.endNotes){
+    var ec=document.getElementById('end-notes-options-show');
+    if(ec&&!ec.checked)ec.click();
+    setTimeout(function(){var t=document.querySelector('#end-notes-options textarea');if(t)setField(t.id||'',d.endNotes);},700);
+  }
+
+  var filled=['Title','Rating','Warnings','Categories'];
+  if(d.fandoms.length)filled.push('Fandoms');
+  if(d.relationships.length)filled.push('Relationships');
+  if(d.characters.length)filled.push('Characters');
+  if(d.freeform.length)filled.push('Additional tags');
+  if(d.summary)filled.push('Summary');
+  if(content)filled.push('Content');
+  if(d.language)filled.push('Language ('+d.language+')');
+  if(d.published)filled.push('Published date ('+d.published+')');
+  alert('Done!\\n\\n'+filled.join(', ')+'\\n\\nWork: '+d.title);
+})();`;
+
+document.getElementById('grabLink').href = grabCode;
+document.getElementById('fillLink').href = fillCode;
+
+window.copyBm = function(which) {
+  const code = which === 'grab' ? grabCode : fillCode;
+  navigator.clipboard.writeText(code);
+  const el = document.getElementById(which + '-copied');
+  el.style.display = 'inline';
+  setTimeout(() => el.style.display = 'none', 2000);
+};
+</script>
+</div>
+</body>
+</html>
