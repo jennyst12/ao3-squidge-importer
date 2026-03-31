@@ -5,7 +5,7 @@ Created with help from Claude AI.
 
 * Add both bookmarklet files to your bookmarks.
 * Make sure you're logged in to both AO3 and Squidge.
-* Open a fic on AO3 in whole work view in your browser.
+* Open a fic on AO3 in whole work view in your browser. It works best with single-chapter fics, please check carefully for multi-chapter fics.
 * Click first bookmarklet. It will copy the details of your fic and then navigate you to Squidge's new work form.
 * Make sure the page has fully loaded.
 * Click second bookmarklet. It will fill in all the fields it can. It will backdate the work to the original AO3 posting date.
